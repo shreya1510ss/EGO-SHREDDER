@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 backend/__pycache__/
 PROJECT_EXPLAINED.md
+ego_shredder_plan.md
