@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ego Shredder</title>
+  <style>
+    /* ── Reset ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Root ────────────────────────────────────────────────────── */
+    :root {
+      --bg:           #f6f3ee;
+      --surface:      #ece8e2;
+      --border:       #dcd7cf;
+      --text:         #1c1814;
+      --text-dim:     #78726a;
+      --text-soft:    #a09890;
+      --user-bg:      #e6e2db;
+      --sys-bg:       #ffffff;
+      --accent:       #a83222;
+      --accent-dim:   #bf4838;
+      --q-color:      #8a6818;
+      --font-read:    Georgia, "Times New Roman", serif;
+      --font-ui:      "Inter", "Segoe UI", system-ui, sans-serif;
+      --font-mono:    "JetBrains Mono", "Fira Code", monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────── */
+    header {
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: breathe 4s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.25; transform: scale(0.7); }
+    }
+    header h1 {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* ── Language toggle ─────────────────────────────────────────── */
+    .lang-toggle {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px;
+      cursor: pointer;
+      user-select: none;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+    .lang-opt {
+      padding: 4px 11px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 16px;
+      color: var(--text-soft);
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 0.04em;
+    }
+    .lang-opt.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Chat scroll area ────────────────────────────────────────── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      scrollbar-width: thin;
+      scrollbar-color: #cdc8c0 transparent;
+    }
+    #chat::-webkit-scrollbar { width: 3px; }
+    #chat::-webkit-scrollbar-thumb { background: #cdc8c0; border-radius: 2px; }
+
+    /* ── Welcome ─────────────────────────────────────────────────── */
+    .welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 60px 20px;
+      animation: rise 0.7s ease;
+    }
+    .welcome .glyph { font-size: 36px; color: var(--accent); opacity: 0.7; line-height: 1; }
+    .welcome h2 {
+      font-family: var(--font-read);
+      font-size: 15px;
+      font-weight: normal;
+      color: var(--text-soft);
+      letter-spacing: 0.04em;
+    }
+    .welcome p {
+      font-size: 12.5px;
+      color: #b0aaa2;
+      line-height: 1.8;
+      text-align: center;
+      max-width: 340px;
+    }
+
+    /* ── Message wrapper ─────────────────────────────────────────── */
+    .message {
+      display: flex;
+      flex-direction: column;
+      animation: rise 0.3s ease;
+      max-width: 720px;
+      width: 100%;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    .role-tag {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+
+    /* USER ── right-aligned ──────────────────────────────────────── */
+    .message.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+    .message.user .role-tag { color: #b8b2aa; }
+    .message.user .bubble {
+      background: var(--user-bg);
+      border: 1px solid #d5d0c8;
+      border-radius: 14px 14px 3px 14px;
+      padding: 13px 18px;
+      font-size: 14.5px;
+      line-height: 1.65;
+      color: #2a2420;
+      max-width: 560px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* SYSTEM ── left-aligned, prose style ───────────────────────── */
+    .message.system {
+      align-self: flex-start;
+      align-items: flex-start;
+      width: 100%;
+    }
+    .message.system .role-tag { color: var(--accent-dim); }
+    .message.system .bubble {
+      background: var(--sys-bg);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 3px 14px 14px 3px;
+      padding: 20px 24px;
+      width: 100%;
+    }
+
+    /* Prose body */
+    .response-body {
+      font-family: var(--font-read);
+      font-size: 15.5px;
+      line-height: 1.85;
+      color: #282420;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Final question — gold highlight */
+    .response-question {
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: rgba(138, 104, 24, 0.07);
+      border-left: 2px solid var(--q-color);
+      border-radius: 0 6px 6px 0;
+      font-family: var(--font-read);
+      font-size: 15.5px;
+      font-style: italic;
+      line-height: 1.75;
+      color: var(--q-color);
+    }
+
+    .analysis-panel {
+      display: none;
+      margin-top: 10px;
+      padding: 14px 16px;
+      background: #edeae5;
+      border: 1px solid #ddd8d2;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.7;
+      color: #6a6460;
+    }
+    .analysis-panel.open { display: block; }
+    .analysis-panel .a-label {
+      color: #a09890;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 9.5px;
+      margin-top: 10px;
+      margin-bottom: 2px;
+    }
+    .analysis-panel .a-label:first-child { margin-top: 0; }
+    .analysis-panel .a-item { color: #585250; padding-left: 4px; }
+    .analysis-panel .a-dissolving { color: #686260; font-style: italic; }
+
+    /* ── Thinking dots ───────────────────────────────────────────── */
+    .thinking {
+      align-self: flex-start;
+      display: flex;
+      gap: 6px;
+      padding: 16px 18px;
+      background: var(--sys-bg);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent-dim);
+      border-radius: 3px 14px 14px 3px;
+      animation: rise 0.2s ease;
+    }
+    .thinking span {
+      width: 5px; height: 5px;
+      background: var(--accent-dim);
+      border-radius: 50%;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    .thinking span:nth-child(2) { animation-delay: 0.22s; }
+    .thinking span:nth-child(3) { animation-delay: 0.44s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.15; }
+      40%            { opacity: 0.9; }
+    }
+
+    /* ── Input bar ───────────────────────────────────────────────── */
+    .input-area {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--bg);
+    }
+    #input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 17px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.55;
+      resize: none;
+      min-height: 50px;
+      max-height: 160px;
+      overflow-y: auto;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #input::placeholder { color: #b0aaa3; }
+    #input:focus { border-color: #c0bab2; }
+
+    #send-btn {
+      flex-shrink: 0;
+      width: 46px; height: 46px;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    #send-btn:hover:not(:disabled) { background: #8e2418; }
+    #send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    #send-btn svg {
+      width: 17px; height: 17px;
+      fill: none; stroke: #fff;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ── Error toast ─────────────────────────────────────────────── */
+    #error-toast {
+      display: none;
+      position: fixed;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff0ee;
+      border: 1px solid var(--accent-dim);
+      color: #a83222;
+      font-size: 12px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      z-index: 100;
+      max-width: 92vw;
+      text-align: center;
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="dot"></div>
+  <h1>Ego Shredder</h1>
+
+  <!-- Language toggle -->
+  <div class="lang-toggle" id="lang-toggle" onclick="toggleLang()" title="Switch language">
+    <div class="lang-opt active" id="opt-en">EN</div>
+    <div class="lang-opt"        id="opt-hi">हिं</div>
+  </div>
+</header>
+
+<div id="chat">
+  <div class="welcome" id="welcome">
+    <div class="glyph">◈</div>
+    <h2 id="welcome-h2">Share what is troubling you</h2>
+    <p  id="welcome-p">Whatever situation, feeling, or belief is weighing on you — put it here, plainly and honestly.</p>
+  </div>
+</div>
+
+<div class="input-area">
+  <textarea
+    id="input"
+    rows="1"
+    placeholder="What is the narrative you're carrying right now…"
+    autofocus
+  ></textarea>
+  <button id="send-btn" title="Send">
+    <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+  </button>
+</div>
+
+<div id="error-toast"></div>
+
+<script>
+  const chatEl      = document.getElementById("chat");
+  const inputEl     = document.getElementById("input");
+  const sendBtn     = document.getElementById("send-btn");
+  const welcomeEl   = document.getElementById("welcome");
+  const errorToast  = document.getElementById("error-toast");
+  const optEn       = document.getElementById("opt-en");
+  const optHi       = document.getElementById("opt-hi");
+
+  const BACKEND = "http://127.0.0.1:8000";
+  let history  = [];
+  let language = "english";   // "english" | "hindi"
+
+  // ── UI strings per language ──────────────────────────────────────
+  const UI = {
+    english: {
+      welcomeH2:   "Share what is troubling you",
+      welcomeP:    "Whatever situation, feeling, or belief is weighing on you — put it here, plainly and honestly.",
+      placeholder: "What is the narrative you're carrying right now…",
+      roleUser:    "you",
+      roleTeacher: "teacher",
+      analysis:    "what's happening underneath",
+      labelNarr:   "Narratives identified",
+      labelFacts:  "Facts (stripped of story)",
+      labelDiss:   "What's being dissolved",
+    },
+    hindi: {
+      welcomeH2:   "जो बात मन में चल रही है, वो बताइए",
+      welcomeP:    "कोई भी स्थिति, भावना या विश्वास जो आपको परेशान कर रहा हो — सीधे यहाँ लिखिए।",
+      placeholder: "अभी आप किस कहानी को पकड़े हुए हैं…",
+      roleUser:    "आप",
+      roleTeacher: "गुरु",
+      analysis:    "अंदर क्या हो रहा है",
+      labelNarr:   "पहचाने गए भाव",
+      labelFacts:  "वास्तविकता (कहानी हटाकर)",
+      labelDiss:   "जो गल रहा है",
+    },
+  };
+
+  // ── Language toggle ──────────────────────────────────────────────
+  function toggleLang() {
+    language = language === "english" ? "hindi" : "english";
+    const L = UI[language];
+
+    // Toggle active state on buttons
+    optEn.classList.toggle("active", language === "english");
+    optHi.classList.toggle("active", language === "hindi");
+
+    // Update placeholder
+    inputEl.placeholder = L.placeholder;
+
+    // Update welcome screen if still visible
+    const wh2 = document.getElementById("welcome-h2");
+    const wp  = document.getElementById("welcome-p");
+    if (wh2) wh2.textContent = L.welcomeH2;
+    if (wp)  wp.textContent  = L.welcomeP;
+
+    // Flip html lang attribute for font rendering hints
+    document.documentElement.lang = language === "hindi" ? "hi" : "en";
+  }
+
+  // ── Auto-grow textarea ───────────────────────────────────────────
+  inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + "px";
+  });
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  sendBtn.addEventListener("click", send);
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+
+  function showError(msg) {
+    errorToast.textContent = msg;
+    errorToast.style.display = "block";
+    setTimeout(() => { errorToast.style.display = "none"; }, 5000);
+  }
+
+  function removeWelcome() {
+    if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
+  }
+
+  // ── Strip markdown artifacts ─────────────────────────────────────
+  function stripMarkdown(s) {
+    return String(s)
+      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
+      .replace(/\*\*(.*?)\*\*/g,     '$1')
+      .replace(/\*(.*?)\*/g,         '$1')
+      .replace(/__(.*?)__/g,         '$1')
+      .replace(/_(.*?)_/g,           '$1');
+  }
+
+  // ── XSS guard ────────────────────────────────────────────────────
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  // ── Render user bubble ───────────────────────────────────────────
+  function appendUser(text) {
+    removeWelcome();
+    const L = UI[language];
+    const wrap = document.createElement("div");
+    wrap.className = "message user";
+    wrap.innerHTML = `
+      <div class="role-tag">${L.roleUser}</div>
+      <div class="bubble">${escHtml(text)}</div>`;
+    chatEl.appendChild(wrap);
+    scrollBottom();
+  }
+
+  // ── Thinking dots ────────────────────────────────────────────────
+  function appendThinking() {
+    const el = document.createElement("div");
+    el.className = "thinking";
+    el.id = "thinking";
+    el.innerHTML = "<span></span><span></span><span></span>";
+    chatEl.appendChild(el);
+    scrollBottom();
+  }
+  function removeThinking() {
+    const el = document.getElementById("thinking");
+    if (el) el.remove();
+  }
+
+  // ── Split body text from final question ──────────────────────────
+  function splitBodyAndQuestion(text, fallbackQuestion) {
+    // Try paragraph break first
+    const paras = text.trim().split(/\n{2,}/);
+    if (paras.length >= 2) {
+      const last = paras[paras.length - 1].trim();
+      if (last.includes("?")) {
+        return { body: paras.slice(0, -1).join("\n\n").trim(), question: last };
+      }
+    }
+    // Try last sentence with "?"
+    const matches = [...text.matchAll(/([^.!?।]*\?)/g)];
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const idx  = text.lastIndexOf(lastMatch[0]);
+      const body = text.slice(0, idx).trim();
+      const q    = text.slice(idx).trim();
+      if (body.length > 20) return { body, question: q };
+    }
+    return { body: text.trim(), question: fallbackQuestion || "" };
+  }
+
+  // ── Render system response ────────────────────────────────────────
+  function appendSystem(state) {
+    const L = UI[language];
+    const clean = stripMarkdown(state.conversational_response || "");
+    const { body, question } = splitBodyAndQuestion(clean, state.next_question);
+
+    const narrativesHtml = state.narratives_identified
+      .map(n => `<div class="a-item">• ${escHtml(n)}</div>`).join("");
+    const factsHtml = state.facts_extracted
+      .map(f => `<div class="a-item">✓ ${escHtml(f)}</div>`).join("");
+
+    const panelId = "panel-" + Date.now();
+    const wrap = document.createElement("div");
+    wrap.className = "message system";
+    wrap.innerHTML = `
+      <div class="role-tag">${L.roleTeacher}</div>
+      <div class="bubble">
+        <div class="response-body">${escHtml(body)}</div>
+        ${question ? `<div class="response-question">${escHtml(question)}</div>` : ""}
+        <div class="analysis-panel" id="${panelId}">
+          <div class="a-label">${L.labelNarr}</div>
+          ${narrativesHtml}
+          <div class="a-label">${L.labelFacts}</div>
+          ${factsHtml}
+          <div class="a-label">${L.labelDiss}</div>
+          <div class="a-dissolving">${escHtml(state.current_narrative_being_shredded)}</div>
+        </div>
+      </div>`;
+
+    chatEl.appendChild(wrap);
+    scrollBottom();
+  }
+
+  // ── Send ─────────────────────────────────────────────────────────
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    inputEl.value = "";
+    inputEl.style.height = "auto";
+    sendBtn.disabled = true;
+
+    appendUser(text);
+    appendThinking();
+
+    try {
+      const res = await fetch(`${BACKEND}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_input: text,
+          conversation_history: history,
+          language: language,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      removeThinking();
+      appendSystem(data.state);
+
+      history.push({ role: "user",      content: text });
+      history.push({ role: "assistant", content: data.response_text });
+
+    } catch (err) {
+      removeThinking();
+      showError("Error: " + err.message);
+      console.error(err);
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+</script>
+</body>
+</html>
