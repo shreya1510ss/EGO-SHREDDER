@@ -3,3 +3,4 @@ backend/.env
 __pycache__/
 *.pyc
 backend/__pycache__/
+PROJECT_EXPLAINED.md
