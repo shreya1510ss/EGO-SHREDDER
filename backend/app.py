@@ -19,10 +19,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from langchain_community.vectorstores import FAISS
-from sentence_transformers import SentenceTransformer
-import numpy as np
-import torch
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -34,61 +30,52 @@ if not CEREBRAS_API_KEY and not GROQ_API_KEY:
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RAG VECTOR STORE LOADER - PINECONE
+# RAG VECTOR STORE LOADER - PINECONE INFERENCE API
 # ─────────────────────────────────────────────────────────────────────────────
 from pinecone import Pinecone
 
+_pinecone_client = None
 _pinecone_index = None
-_embedding_model = None
+
+def _get_pinecone_client():
+    global _pinecone_client
+    if _pinecone_client is None:
+        api_key = os.getenv("PINECONE_API_KEY")
+        _pinecone_client = Pinecone(api_key=api_key)
+        print(f"[OK] Connected to Pinecone")
+    return _pinecone_client
 
 def _get_pinecone_index():
     global _pinecone_index
     if _pinecone_index is None:
-        api_key = os.getenv("PINECONE_API_KEY")
         index_name = os.getenv("PINECONE_INDEX_NAME", "paf")
-
-        pc = Pinecone(api_key=api_key)
+        pc = _get_pinecone_client()
         _pinecone_index = pc.Index(index_name)
         print(f"[OK] Connected to Pinecone index: {index_name}")
     return _pinecone_index
 
-def _get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = SentenceTransformer("all-mpnet-base-v2", device="cpu")
-        _embedding_model.eval()
-    return _embedding_model
-
-def _retrieve_context(query: str, k: int = 3) -> str:
+def _retrieve_context(query: str, k: int = 4) -> str:
     try:
-        # Embed the query
-        model = _get_embedding_model()
-        with torch.no_grad():
-            query_embedding = model.encode(query, convert_to_numpy=True).tolist()
+        pc = _get_pinecone_client()
+        index = _get_pinecone_index()
+
+        # Generate embedding via Pinecone Inference API (no local model needed)
+        res = pc.inference.embed(
+            model="multilingual-e5-large",
+            inputs=[query],
+            parameters={"input_type": "query"}
+        )
+        query_embedding = res.data[0].values
 
         # Search Pinecone
-        index = _get_pinecone_index()
-        results = index.query(query_embedding, top_k=k, include_metadata=True)
+        results = index.query(vector=query_embedding, top_k=k, include_metadata=True)
 
         # Extract text from results
-        texts = [match["metadata"]["text"] for match in results["matches"]]
+        texts = [match["metadata"]["text"] for match in results["matches"] if "text" in match["metadata"]]
         return "\n\n".join(texts)
     except Exception as e:
         print(f"[WARNING] Vector store retrieval failed: {e}")
         return ""
-
-class SentenceTransformersEmbedding:
-    """Wrapper for compatibility"""
-    def __init__(self, model_name="all-MiniLM-L6-v2"):
-        self.model = _get_embedding_model()
-
-    def embed_documents(self, texts):
-        with torch.no_grad():
-            return self.model.encode(texts, convert_to_numpy=True).tolist()
-
-    def embed_query(self, text):
-        with torch.no_grad():
-            return self.model.encode(text, convert_to_numpy=True).tolist()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODULE 1 : API LAYER
