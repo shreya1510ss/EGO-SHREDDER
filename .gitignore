@@ -5,3 +5,8 @@ __pycache__/
 backend/__pycache__/
 PROJECT_EXPLAINED.md
 ego_shredder_plan.md
+venv/
+venv_deploy/
+venv_build/
+venv_rag/
+.venv/

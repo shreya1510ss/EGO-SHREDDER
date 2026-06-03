@@ -1,13 +1,10 @@
 import os
 import shutil
 from pathlib import Path
-from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
-load_dotenv()
+from sentence_transformers import SentenceTransformer
 
 def build_pdf_vectorstore():
     pdf_path = Path(__file__).parent / "AcharyaPrashantBook.pdf"
@@ -30,9 +27,18 @@ def build_pdf_vectorstore():
     chunks = splitter.split_documents(documents)
     print(f"Created {len(chunks)} chunks")
 
-    print("Initializing Google embeddings (models/embedding-001)...")
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=google_api_key)
+    print("Initializing sentence-transformers embeddings (all-MiniLM-L6-v2)...")
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    class SentenceTransformersEmbedding:
+        def __init__(self, model):
+            self.model = model
+        def embed_documents(self, texts):
+            return self.model.encode(texts, convert_to_numpy=True).tolist()
+        def embed_query(self, text):
+            return self.model.encode(text, convert_to_numpy=True).tolist()
+
+    embeddings = SentenceTransformersEmbedding(model)
 
     if db_path.exists():
         print(f"Removing existing vector store from: {db_path}")
