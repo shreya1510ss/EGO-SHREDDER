@@ -10,3 +10,4 @@ venv_deploy/
 venv_build/
 venv_rag/
 .venv/
+ego_shredder_db/
