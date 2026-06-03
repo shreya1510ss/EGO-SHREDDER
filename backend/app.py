@@ -34,44 +34,61 @@ if not CEREBRAS_API_KEY and not GROQ_API_KEY:
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RAG VECTOR STORE LOADER
+# RAG VECTOR STORE LOADER - PINECONE
 # ─────────────────────────────────────────────────────────────────────────────
-_vector_store = None
+from pinecone import Pinecone
+
+_pinecone_index = None
 _embedding_model = None
 
+def _get_pinecone_index():
+    global _pinecone_index
+    if _pinecone_index is None:
+        api_key = os.getenv("PINECONE_API_KEY")
+        index_name = os.getenv("PINECONE_INDEX_NAME", "paf")
+
+        pc = Pinecone(api_key=api_key)
+        _pinecone_index = pc.Index(index_name)
+        print(f"[OK] Connected to Pinecone index: {index_name}")
+    return _pinecone_index
+
+def _get_embedding_model():
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = SentenceTransformer("all-mpnet-base-v2", device="cpu")
+        _embedding_model.eval()
+    return _embedding_model
+
+def _retrieve_context(query: str, k: int = 3) -> str:
+    try:
+        # Embed the query
+        model = _get_embedding_model()
+        with torch.no_grad():
+            query_embedding = model.encode(query, convert_to_numpy=True).tolist()
+
+        # Search Pinecone
+        index = _get_pinecone_index()
+        results = index.query(query_embedding, top_k=k, include_metadata=True)
+
+        # Extract text from results
+        texts = [match["metadata"]["text"] for match in results["matches"]]
+        return "\n\n".join(texts)
+    except Exception as e:
+        print(f"[WARNING] Vector store retrieval failed: {e}")
+        return ""
+
 class SentenceTransformersEmbedding:
-    """Wrapper to make sentence-transformers compatible with LangChain FAISS"""
+    """Wrapper for compatibility"""
     def __init__(self, model_name="all-MiniLM-L6-v2"):
-        # Load model on CPU in evaluation mode to save memory
-        self.model = SentenceTransformer(model_name, device="cpu")
-        self.model.eval()  # Disable dropout and batch norm
+        self.model = _get_embedding_model()
 
     def embed_documents(self, texts):
-        # Disable gradient tracking to reduce memory usage
         with torch.no_grad():
             return self.model.encode(texts, convert_to_numpy=True).tolist()
 
     def embed_query(self, text):
-        # Disable gradient tracking to reduce memory usage
         with torch.no_grad():
             return self.model.encode(text, convert_to_numpy=True).tolist()
-
-def _get_vector_store():
-    global _vector_store, _embedding_model
-    if _vector_store is None:
-        db_path = os.path.join(os.path.dirname(__file__), "..", "ego_shredder_db")
-        _embedding_model = SentenceTransformersEmbedding(model_name="all-MiniLM-L6-v2")
-        _vector_store = FAISS.load_local(db_path, _embedding_model, allow_dangerous_deserialization=True)
-        print(f"[OK] Vector store loaded from {db_path}")
-    return _vector_store
-
-def _retrieve_context(query: str, k: int = 3) -> str:
-    try:
-        docs = _get_vector_store().similarity_search(query, k=k)
-        return "\n\n".join(doc.page_content for doc in docs)
-    except Exception as e:
-        print(f"[WARNING] Vector store retrieval failed: {e}")
-        return ""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODULE 1 : API LAYER
