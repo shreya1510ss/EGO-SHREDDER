@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-Content \"c:\\\\Users\\\\SHREYA SHARMA\\\\Desktop\\\\Ego Shredder\\\\rag_pipeline\\\\raw_transcripts\\\\Does Your Partner Love You Or Just Own You  Acharya Prashant IIT Bhubaneswar 2026.txt\" -TotalCount 80)",
+      "Bash(python rag_pipeline/build_pdf_vectorstore.py)",
+      "Bash(python -m venv venv_rag)",
+      "Bash(venv_rag\\\\Scripts\\\\activate)",
+      "Bash(langchain-huggingface)",
+      "Bash(timeout 10 python -c \"from app import app; print\\('[OK] Backend app loaded successfully'\\)\")",
+      "Bash(timeout 15 python -c \"from app import app; print\\('[OK] Backend app loaded successfully'\\)\")",
+      "PowerShell(cd \"c:\\\\Users\\\\SHREYA SHARMA\\\\Desktop\\\\Ego Shredder\\\\backend\"; Start-Process python -ArgumentList \"-m uvicorn app:app --host 127.0.0.1 --port 8000\" -NoNewWindow -RedirectStandardOutput \"$env:TEMP\\\\backend.log\" -RedirectStandardError \"$env:TEMP\\\\backend_err.log\"; Start-Sleep -Seconds 3; Get-Content \"$env:TEMP\\\\backend.log\" | Select-Object -First 20)",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/chat -H 'Content-Type: application/json' -d '{\"user_input\": \"What is ego?\", \"conversation_history\": [], \"language\": \"english\"}')",
+      "Bash(python -m uvicorn app:app --host 127.0.0.1 --port 8000)",
+      "PowerShell($netstat = netstat -ano | findstr \":8000\"; if \\($netstat\\) { $parts = $netstat -split '\\\\s+'; $procId = $parts[-1]; Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $procId\"; Start-Sleep -Seconds 2 } else { Write-Host \"Port 8000 is free\" })",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  }
+}
