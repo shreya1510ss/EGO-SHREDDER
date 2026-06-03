@@ -5,6 +5,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
+import torch
 
 def build_pdf_vectorstore():
     pdf_path = Path(__file__).parent / "AcharyaPrashantBook.pdf"
@@ -28,15 +29,21 @@ def build_pdf_vectorstore():
     print(f"Created {len(chunks)} chunks")
 
     print("Initializing sentence-transformers embeddings (all-MiniLM-L6-v2)...")
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    # Load model on CPU in evaluation mode to save memory
+    model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+    model.eval()
 
     class SentenceTransformersEmbedding:
         def __init__(self, model):
             self.model = model
         def embed_documents(self, texts):
-            return self.model.encode(texts, convert_to_numpy=True).tolist()
+            # Disable gradient tracking to reduce memory usage
+            with torch.no_grad():
+                return self.model.encode(texts, convert_to_numpy=True).tolist()
         def embed_query(self, text):
-            return self.model.encode(text, convert_to_numpy=True).tolist()
+            # Disable gradient tracking to reduce memory usage
+            with torch.no_grad():
+                return self.model.encode(text, convert_to_numpy=True).tolist()
 
     embeddings = SentenceTransformersEmbedding(model)
 

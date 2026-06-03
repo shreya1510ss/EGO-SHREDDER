@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
 import numpy as np
+import torch
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -41,13 +42,19 @@ _embedding_model = None
 class SentenceTransformersEmbedding:
     """Wrapper to make sentence-transformers compatible with LangChain FAISS"""
     def __init__(self, model_name="all-MiniLM-L6-v2"):
-        self.model = SentenceTransformer(model_name)
+        # Load model on CPU in evaluation mode to save memory
+        self.model = SentenceTransformer(model_name, device="cpu")
+        self.model.eval()  # Disable dropout and batch norm
 
     def embed_documents(self, texts):
-        return self.model.encode(texts, convert_to_numpy=True).tolist()
+        # Disable gradient tracking to reduce memory usage
+        with torch.no_grad():
+            return self.model.encode(texts, convert_to_numpy=True).tolist()
 
     def embed_query(self, text):
-        return self.model.encode(text, convert_to_numpy=True).tolist()
+        # Disable gradient tracking to reduce memory usage
+        with torch.no_grad():
+            return self.model.encode(text, convert_to_numpy=True).tolist()
 
 def _get_vector_store():
     global _vector_store, _embedding_model
