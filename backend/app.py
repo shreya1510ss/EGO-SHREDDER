@@ -123,7 +123,11 @@ class ConversationalMirrorState(BaseModel):
         description="The main illusion being addressed right now"
     )
     conversational_response: str = Field(
-        description="The full live response. Can end with a sharp closing question, a cold declaration, or a challenge based directly on the user's latest answer."
+        description="Declarations only — no questions."
+    )
+    closing_question: str = Field(
+        default="",
+        description="Optional single question. Empty string if not warranted."
     )
 
 
@@ -184,7 +188,8 @@ RESPOND IN THIS JSON FORMAT (No markdown, ensure all string quotes are cleanly e
   "facts_extracted": ["The raw, unvarnished facts of the situation stripped of emotional narrative"],
   "questions_asked": ["List of questions asked so far in this conversation"],
   "current_narrative_being_shredded": "The exact illusion being targeted right now",
-  "conversational_response": "3 to 6 sentences in AP's exact live voice. You must directly address, mock, or dismantle the user's last statement. DEFAULT TO DECLARATIONS — cold, final, cutting statements that leave no room to hide. Only ask a question when the user's specific words reveal a hidden contradiction or self-deception that needs to be exposed by making them say it themselves. If you just dismantled something cleanly, stop there. Do not add a question out of habit. Plain prose only. No markdown. No bolding."
+  "conversational_response": "3 to 6 sentences of DECLARATIONS ONLY in AP's exact live voice. Directly address, mock, or dismantle the user's last statement with cold, cutting assertions. ABSOLUTELY NO QUESTIONS in this field. Ever. Plain prose only. No markdown. No bolding.",
+  "closing_question": "A single sharp question — OR empty string. Fill this ONLY when the user's specific words expose a live contradiction or self-deception that a question can force them to confront directly. Leave as empty string \"\" in all other cases: when the user agreed, conceded, gave a short reply, or when your declarations already landed cleanly."
 }"""
 
 
@@ -261,8 +266,8 @@ def execute_persona_inference(
     questions = data.get("questions_asked", [])
     current = data.get("current_narrative_being_shredded", "")
     conv = data.get("conversational_response", "")
+    closing_q = data.get("closing_question", "")
 
-    # Fallback to prevent UI rendering errors
     if not conv:
         conv = "Look closely at what you are saying. Let's look deeper."
 
@@ -272,6 +277,7 @@ def execute_persona_inference(
         questions_asked=questions if isinstance(questions, list) else [questions],
         current_narrative_being_shredded=str(current),
         conversational_response=str(conv),
+        closing_question=str(closing_q) if closing_q else "",
     )
 
 

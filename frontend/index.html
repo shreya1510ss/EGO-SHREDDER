@@ -493,33 +493,11 @@
     if (el) el.remove();
   }
 
-  // ── Split body text from final question ──────────────────────────
-  function splitBodyAndQuestion(text, fallbackQuestion) {
-    // Try paragraph break first
-    const paras = text.trim().split(/\n{2,}/);
-    if (paras.length >= 2) {
-      const last = paras[paras.length - 1].trim();
-      if (last.includes("?")) {
-        return { body: paras.slice(0, -1).join("\n\n").trim(), question: last };
-      }
-    }
-    // Try last sentence with "?"
-    const matches = [...text.matchAll(/([^.!?।]*\?)/g)];
-    if (matches.length > 0) {
-      const lastMatch = matches[matches.length - 1];
-      const idx  = text.lastIndexOf(lastMatch[0]);
-      const body = text.slice(0, idx).trim();
-      const q    = text.slice(idx).trim();
-      if (body.length > 20) return { body, question: q };
-    }
-    return { body: text.trim(), question: fallbackQuestion || "" };
-  }
-
   // ── Render system response ────────────────────────────────────────
   function appendSystem(state) {
     const L = UI[language];
-    const clean = stripMarkdown(state.conversational_response || "");
-    const { body, question } = splitBodyAndQuestion(clean, state.next_question);
+    const body = stripMarkdown(state.conversational_response || "");
+    const question = stripMarkdown(state.closing_question || "");
 
     const narrativesHtml = state.narratives_identified
       .map(n => `<div class="a-item">• ${escHtml(n)}</div>`).join("");
