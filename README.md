@@ -122,6 +122,3 @@ User Message
 
 ---
 
-## For Detailed Architecture
-
-See **PROJECT_ARCHITECTURE.md** for complete technical breakdown, deployment instructions, and technology rationale.
