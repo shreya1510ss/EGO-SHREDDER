@@ -183,7 +183,7 @@ RESPOND IN THIS JSON FORMAT (No markdown, ensure all string quotes are cleanly e
   "facts_extracted": ["The raw, unvarnished facts of the situation stripped of emotional narrative"],
   "questions_asked": ["List of questions asked so far in this conversation"],
   "current_narrative_being_shredded": "The exact illusion being targeted right now",
-  "conversational_response": "3 to 6 sentences in AP's exact live voice. You must directly address, mock, or dismantle the user's last statement. Use a mix of sharp assertions and a final devastating question. Plain prose only. No markdown. No bolding."
+  "conversational_response": "3 to 6 sentences in AP's exact live voice. You must directly address, mock, or dismantle the user's last statement. Use sharp assertions and declarations. Only end with a question if the user's answer genuinely reveals something worth probing deeper — do not force a question every time. Sometimes the most powerful response is a cold, final statement that leaves no room to hide. Plain prose only. No markdown. No bolding."
 }"""
 
 
