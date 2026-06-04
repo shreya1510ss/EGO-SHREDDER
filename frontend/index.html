@@ -137,6 +137,7 @@
       animation: rise 0.3s ease;
       max-width: 720px;
       width: 100%;
+      min-width: 0;
     }
     @keyframes rise {
       from { opacity: 0; transform: translateY(8px); }
@@ -184,6 +185,7 @@
       border-radius: 3px 14px 14px 3px;
       padding: 20px 24px;
       width: 100%;
+      overflow: hidden;
     }
 
     /* Prose body */
@@ -194,6 +196,7 @@
       color: #282420;
       white-space: pre-wrap;
       word-break: break-word;
+      overflow-wrap: break-word;
     }
 
     /* Final question — gold highlight */
