@@ -3,7 +3,7 @@ import Header from './components/Header'
 import ChatWindow from './components/ChatWindow'
 import InputBar from './components/InputBar'
 
-const BACKEND = 'https://ego-shredder-1.onrender.com'
+const BACKEND = 'https://ego-shredder-backend.onrender.com'
 
 function App() {
   const [history, setHistory]   = useState([])
