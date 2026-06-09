@@ -1,13 +1,3 @@
-"""
-EGO SHREDDER - Backend
-======================
-4-module system:
-  Module 1 : API Layer         (FastAPI)
-  Module 2 : State Management (Pydantic)
-  Module 3 : Inference Router  (Cerebras / Groq)
-  Module 4 : Response Engine   (Deterministic Extraction)
-"""
-
 import json
 import os
 import re
@@ -19,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from pydantic import BaseModel, Field
+from pinecone import Pinecone
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -29,10 +20,7 @@ if not CEREBRAS_API_KEY and not GROQ_API_KEY:
         "\n\n[ERROR] No API key set. Add CEREBRAS_API_KEY or GROQ_API_KEY to backend/.env\n"
     )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RAG VECTOR STORE LOADER - PINECONE INFERENCE API
-# ─────────────────────────────────────────────────────────────────────────────
-from pinecone import Pinecone
+# --- Pinecone ---
 
 _pinecone_client = None
 _pinecone_index = None
@@ -40,46 +28,36 @@ _pinecone_index = None
 def _get_pinecone_client():
     global _pinecone_client
     if _pinecone_client is None:
-        api_key = os.getenv("PINECONE_API_KEY")
-        _pinecone_client = Pinecone(api_key=api_key)
-        print(f"[OK] Connected to Pinecone")
+        _pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        print("[OK] Connected to Pinecone")
     return _pinecone_client
 
 def _get_pinecone_index():
     global _pinecone_index
     if _pinecone_index is None:
         index_name = os.getenv("PINECONE_INDEX_NAME", "paf")
-        pc = _get_pinecone_client()
-        _pinecone_index = pc.Index(index_name)
+        _pinecone_index = _get_pinecone_client().Index(index_name)
         print(f"[OK] Connected to Pinecone index: {index_name}")
     return _pinecone_index
 
 def _retrieve_context(query: str, k: int = 4) -> str:
     try:
-        pc = _get_pinecone_client()
-        index = _get_pinecone_index()
-
-        # Generate embedding via Pinecone Inference API (no local model needed)
-        res = pc.inference.embed(
+        res = _get_pinecone_client().inference.embed(
             model="multilingual-e5-large",
             inputs=[query],
             parameters={"input_type": "query"}
         )
-        query_embedding = res.data[0].values
-
-        # Search Pinecone
-        results = index.query(vector=query_embedding, top_k=k, include_metadata=True)
-
-        # Extract text from results
-        texts = [match["metadata"]["text"] for match in results["matches"] if "text" in match["metadata"]]
+        results = _get_pinecone_index().query(
+            vector=res.data[0].values, top_k=k, include_metadata=True
+        )
+        texts = [m["metadata"]["text"] for m in results["matches"] if "text" in m["metadata"]]
         return "\n\n".join(texts)
     except Exception as e:
         print(f"[WARNING] Vector store retrieval failed: {e}")
         return ""
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODULE 1 : API LAYER
-# ─────────────────────────────────────────────────────────────────────────────
+# --- API ---
+
 app = FastAPI(
     title="Ego Shredder",
     description="Relentless ego-narrative dissolution via Socratic questioning.",
@@ -94,61 +72,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Models ---
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODULE 2 : STATE MANAGEMENT (Pydantic)
-# ─────────────────────────────────────────────────────────────────────────────
 class HistoryMessage(BaseModel):
-    role: str          # "user" | "assistant"
+    role: str
     content: str
-
 
 class ChatRequest(BaseModel):
     user_input: str
     conversation_history: list[HistoryMessage] = Field(default_factory=list)
-    language: str = Field(default="english", description="'english' or 'hindi'")
-
+    language: str = Field(default="english")
 
 class ConversationalMirrorState(BaseModel):
-    narratives_identified: list[str] = Field(
-        description="Ego stories the user is operating from"
-    )
-    facts_extracted: list[str] = Field(
-        description="Observable reality stripped of story"
-    )
-    questions_asked: list[str] = Field(
-        description="Questions used so far to dissolve narratives"
-    )
-    current_narrative_being_shredded: str = Field(
-        description="The main illusion being addressed right now"
-    )
-    conversational_response: str = Field(
-        description="Declarations only — no questions."
-    )
-    closing_question: str = Field(
-        default="",
-        description="Optional single question. Empty string if not warranted."
-    )
-
+    narratives_identified: list[str]
+    facts_extracted: list[str]
+    questions_asked: list[str]
+    current_narrative_being_shredded: str
+    conversational_response: str
+    closing_question: str = ""
 
 class ChatResponse(BaseModel):
     response_text: str
     state: ConversationalMirrorState
 
+# --- Inference client ---
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODULE 3 : INFERENCE ROUTER (Cerebras / Groq)
-# ─────────────────────────────────────────────────────────────────────────────
-# Decouple endpoint client based on environment configurations
 if CEREBRAS_API_KEY:
     _client = OpenAI(api_key=CEREBRAS_API_KEY, base_url="https://api.cerebras.ai/v1")
     _model = "gpt-oss-120b"
-    print(f"[INFO] Production Compute Node Route: Cerebras ({_model})")
+    print(f"[INFO] Using Cerebras ({_model})")
 else:
     _client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
     _model = "llama-3.3-70b-versatile"
-    print(f"[INFO] Production Compute Node Route: Groq ({_model})")
+    print(f"[INFO] Using Groq ({_model})")
 
+# --- Prompts ---
 
 def build_system_prompt() -> str:
     return """You are Acharya Prashant speaking directly to a student in an intense, live, face-to-face dialogue. Respond ONLY in his unmistakable voice: uncompromising, deeply psychological, fiercely rational, and entirely unconcerned with comforting the questioner's feelings.
@@ -189,7 +147,7 @@ RESPOND IN THIS JSON FORMAT (No markdown, ensure all string quotes are cleanly e
   "questions_asked": ["List of questions asked so far in this conversation"],
   "current_narrative_being_shredded": "The exact illusion being targeted right now",
   "conversational_response": "3 to 6 sentences of DECLARATIONS ONLY in AP's exact live voice. Directly address, mock, or dismantle the user's last statement with cold, cutting assertions. ABSOLUTELY NO QUESTIONS in this field. Ever. Plain prose only. No markdown. No bolding.",
-  "closing_question": "A single sharp question — OR empty string. Fill this ONLY when the user's specific words expose a live contradiction or self-deception that a question can force them to confront directly. Leave as empty string \"\" in all other cases: when the user agreed, conceded, gave a short reply, or when your declarations already landed cleanly."
+  "closing_question": "A single sharp question — OR empty string. Fill this ONLY when the user's specific words expose a live contradiction or self-deception that a question can force them to confront directly. Leave as empty string \\"\" in all other cases: when the user agreed, conceded, gave a short reply, or when your declarations already landed cleanly."
 }"""
 
 
@@ -216,10 +174,11 @@ LANGUAGE: HINDI — सम्पूर्ण उत्तर हिंदी म
 
 कोई markdown नहीं — न *, न **, न bullet points। केवल सादा गद्य।"""
 
+# --- Inference ---
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODULE 4 : ENGINE INFERENCE
-# ─────────────────────────────────────────────────────────────────────────────
+def _as_list(v: Any) -> list:
+    return v if isinstance(v, list) else [v]
+
 def execute_persona_inference(
     history: list[HistoryMessage], user_input: str, language: str = "english"
 ) -> ConversationalMirrorState:
@@ -234,8 +193,7 @@ def execute_persona_inference(
 
     messages = [{"role": "system", "content": system_prompt}]
     for msg in history:
-        role = "user" if msg.role == "user" else "assistant"
-        messages.append({"role": role, "content": msg.content})
+        messages.append({"role": "user" if msg.role == "user" else "assistant", "content": msg.content})
     messages.append({"role": "user", "content": user_input})
 
     response = _client.chat.completions.create(
@@ -247,8 +205,6 @@ def execute_persona_inference(
     )
 
     raw_text = response.choices[0].message.content.strip()
-
-    # Strip markdown fences using hex escape code to prevent markdown parser breaks
     raw_text = re.sub(r"^\x60{3}(?:json)?\s*", "", raw_text)
     raw_text = re.sub(r"\s*\x60{3}$", "", raw_text)
 
@@ -260,47 +216,30 @@ def execute_persona_inference(
             detail=f"Inference engine returned invalid JSON payload: {exc}\n\nRaw: {raw_text[:500]}",
         )
 
-    # Normalise keys — handles snake_case or typo variations seamlessly
-    narratives = data.get("narratives_identified", [])
-    facts = data.get("facts_extracted", [])
-    questions = data.get("questions_asked", [])
-    current = data.get("current_narrative_being_shredded", "")
-    conv = data.get("conversational_response", "")
-    closing_q = data.get("closing_question", "")
-
-    if not conv:
-        conv = "Look closely at what you are saying. Let's look deeper."
+    conv = data.get("conversational_response", "") or "Look closely at what you are saying. Let's look deeper."
 
     return ConversationalMirrorState(
-        narratives_identified=narratives if isinstance(narratives, list) else [narratives],
-        facts_extracted=facts if isinstance(facts, list) else [facts],
-        questions_asked=questions if isinstance(questions, list) else [questions],
-        current_narrative_being_shredded=str(current),
+        narratives_identified=_as_list(data.get("narratives_identified", [])),
+        facts_extracted=_as_list(data.get("facts_extracted", [])),
+        questions_asked=_as_list(data.get("questions_asked", [])),
+        current_narrative_being_shredded=str(data.get("current_narrative_being_shredded", "")),
         conversational_response=str(conv),
-        closing_question=str(closing_q) if closing_q else "",
+        closing_question=str(data.get("closing_question", "")),
     )
 
+# --- Endpoints ---
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN ENDPOINT
-# ─────────────────────────────────────────────────────────────────────────────
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     if not request.user_input.strip():
         raise HTTPException(status_code=400, detail="user_input cannot be empty.")
-
     state = execute_persona_inference(request.conversation_history, request.user_input, request.language)
     return ChatResponse(response_text=state.conversational_response, state=state)
-
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "healthy", "active_compute_model": _model}
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ENTRY POINT
-# ─────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
