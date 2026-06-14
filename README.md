@@ -131,9 +131,4 @@ uvicorn app:app --reload
 
 ---
 
-## Deployment
 
-| Service | Platform | Branch |
-|---------|----------|--------|
-| Frontend | Netlify | `main-deployement` — base dir: `frontend-react`, build: `npm run build`, publish: `frontend-react/dist` |
-| Backend | Render | `main-deployement` — root: `backend/` |
