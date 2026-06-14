@@ -26,7 +26,7 @@ AI chatbot that embodies Acharya Prashant's teaching style using RAG to ground r
 
 ---
 
-## Project Structure
+<!--## Project Structure
 
 ```
 Ego Shredder/
@@ -48,7 +48,7 @@ Ego Shredder/
     └── AcharyaPrashantBook.pdf
 ```
 
----
+--->
 
 ## Architecture Flow
 
@@ -131,9 +131,4 @@ uvicorn app:app --reload
 
 ---
 
-## Deployment
 
-| Service | Platform | Branch |
-|---------|----------|--------|
-| Frontend | Netlify | `main-deployement` — base dir: `frontend-react`, build: `npm run build`, publish: `frontend-react/dist` |
-| Backend | Render | `main-deployement` — root: `backend/` |
