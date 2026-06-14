@@ -88,38 +88,6 @@ User Message
 ## Video-DEMO
 <video src="https://github.com/user-attachments/assets/78980a93-565f-4549-b6bb-ca8ffb291b96" controls width="100%"></video>
 
-
-
-
-
-
-
-
-
-
-## RAG Pipeline (one-time setup — already done)
-
-The `rag_pipeline/` folder contains scripts that were run once to populate Pinecone. **You do not need to run these again** unless you want to add a new book.
-
-1. `upload_to_pinecone.py` — loads the PDF, splits into chunks, generates embeddings via Pinecone Inference API, uploads to Pinecone index `paf`
-
-At query time, `backend/app.py → _retrieve_context()` embeds the user's message and fetches the top-4 most relevant passages from Pinecone to inject into the system prompt.
-
----
-
-## LLM Response Format
-
-Every response from the LLM is structured JSON:
-
-```json
-{
-  "narratives_identified": ["ego story the user is operating from"],
-  "facts_extracted": ["bare facts stripped of narrative"],
-  "questions_asked": ["questions asked so far in conversation"],
-  "current_narrative_being_shredded": "the illusion being targeted now",
-  "conversational_response": "AP's response — declarations only, no questions",
-  "closing_question": "one sharp question, or empty string"
-}
 ```
 
 ---
