@@ -1,6 +1,6 @@
 # Ego Shredder
 
-A minimalist self-reflection chat app inspired by the teachings of the great philosopher Acharya Prashant. It embodies Acharya Prashant's teaching style using RAG to ground responses in actual teachings from his book "Trurh Without Apology"
+A minimalist self-reflection chat app inspired by the teachings of the great philosopher Acharya Prashant. It embodies Acharya Prashant's teaching style using RAG to ground responses in actual teachings from his book "Truth Without Apology"
 
 ---
 
