@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from './components/Header'
 import ChatWindow from './components/ChatWindow'
 import InputBar from './components/InputBar'
@@ -11,6 +11,10 @@ function App() {
   const [messages, setMessages] = useState([])
   const [thinking, setThinking] = useState(false)
   const [error, setError]       = useState('')
+
+  useEffect(() => {
+    fetch(`${BACKEND}/health`).catch(() => {})
+  }, [])
 
   async function send(text) {
     setMessages(prev => [...prev, { type: 'user', text }])
