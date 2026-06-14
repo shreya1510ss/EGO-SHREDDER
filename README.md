@@ -50,7 +50,7 @@ Ego Shredder/
 
 --->
 
-## Architecture Flow
+<!--## Architecture Flow
 
 ```
 User Message
@@ -83,7 +83,12 @@ User Message
 └─────────────────────────────────────────┘
 ```
 
----
+--->
+
+##video
+https://github.com/user-attachments/assets/0862ae3c-18b0-4bf5-bef3-26057f06ed2e
+
+
 
 ## RAG Pipeline (one-time setup — already done)
 
