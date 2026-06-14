@@ -26,7 +26,7 @@ AI chatbot that embodies Acharya Prashant's teaching style using RAG to ground r
 
 ---
 
-## Project Structure
+<!--## Project Structure
 
 ```
 Ego Shredder/
@@ -48,7 +48,7 @@ Ego Shredder/
     └── AcharyaPrashantBook.pdf
 ```
 
----
+--->
 
 ## Architecture Flow
 
